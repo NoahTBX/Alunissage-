@@ -1,0 +1,104 @@
+import random
+import time
+
+# Paramètres initiaux
+GRAVITE_LUNE = 1.62  # Gravité lunaire en m/s²
+MASSE_MODULE_INITIALE = 15000  # Masse initiale du module sans carburant en kg
+VITESSE_EJECTION = 4500  # Vitesse d'éjection des gaz en m/s
+TEMPS_ETAPE = 10  # Temps entre chaque commande en secondes
+
+
+def atterissage_lunaire(distance_initiale: float, carburant_initial: float, vitesse_initiale: float,
+                        mode_immersif: bool = False):
+    """
+    Simule l'atterrissage lunaire.
+
+    :param distance_initiale: Hauteur initiale en mètres
+    :param carburant_initial: Carburant initial en kg
+    :param vitesse_initiale: Vitesse initiale en m/s (négative vers le bas)
+    :param mode_immersif: Si True, ajoute un délai pour simuler le temps réel
+    """
+    # Variables
+    hauteur = distance_initiale
+    vitesse = vitesse_initiale
+    carburant = carburant_initial
+    masse_module = MASSE_MODULE_INITIALE + carburant
+    temps_sleep = TEMPS_ETAPE if mode_immersif else 0
+
+    while hauteur > 0:
+        # Affichage état actuel
+        print(f"Hauteur actuelle: {hauteur:.2f} m")
+        print(f"Vitesse actuelle: {vitesse:.2f} m/s")
+        print(f"Carburant restant: {carburant:.2f} kg")
+
+        # Saisie quantité de carburant à utiliser
+        quantite_fuel = -1
+        while quantite_fuel < 0 or quantite_fuel > carburant:
+            try:
+                quantite_fuel = float(input(f"Entrez la quantité de carburant à utiliser (0-{carburant:.0f}) : "))
+                if quantite_fuel < 0 or quantite_fuel > carburant:
+                    print("Quantité de carburant invalide, réessayez.")
+            except ValueError:
+                print("Entrée invalide, veuillez entrer un nombre.")
+
+        # Calcul de l'accélération due à la poussée
+        acceleration_poussee = (quantite_fuel * VITESSE_EJECTION) / (masse_module * TEMPS_ETAPE)
+
+        # Mise à jour de la vitesse : dv = (-g + a_poussee) * dt
+        delta_v = (-GRAVITE_LUNE + acceleration_poussee) * TEMPS_ETAPE
+        vitesse_nouvelle = vitesse + delta_v
+
+        # Mise à jour de la position avec méthode d'Euler améliorée (vitesse moyenne)
+        delta_hauteur = (vitesse + vitesse_nouvelle) / 2 * TEMPS_ETAPE
+        hauteur += delta_hauteur  # Ajoute une valeur négative pour diminuer la hauteur
+
+        # Ajustements si on touche le sol
+        if hauteur <= 0:
+            hauteur = 0
+
+        # Mise à jour vitesse pour prochaine itération
+        vitesse = vitesse_nouvelle
+
+        # Mise à jour masse et carburant
+        masse_module -= quantite_fuel
+        carburant -= quantite_fuel
+
+        # Pause pour immersion
+        time.sleep(temps_sleep)
+
+    # Résultat final
+    print("\n--- Résultat de la mission ---")
+    print(f"Vitesse à l'impact: {abs(vitesse):.2f} m/s (vers le bas)")
+    if abs(vitesse) <= 10:
+        print("Atterrissage réussi !")
+    else:
+        print("Atterrissage échoué... Le module s'est écrasé.")
+
+
+# Menu principal
+print("Bienvenue dans la simulation d'atterrissage lunaire !")
+mode_valide = False
+while not mode_valide:
+    try:
+        choix = int(input("Choisissez le mode : 1 (Immersif), 2 (Rapide) : "))
+        if choix in [1, 2]:
+            mode_valide = True
+        else:
+            print("Choix invalide, réessayez.")
+    except ValueError:
+        print("Entrée invalide, veuillez entrer 1 ou 2.")
+
+mode_immersif = (choix == 1)
+
+if choix == 2:
+    # Mode rapide avec valeurs aléatoires
+    distance = random.uniform(5000, 100000)
+    carburant = random.uniform(4000, 15000)
+    vitesse = random.uniform(-1580, 0)
+else:
+    # Valeurs par défaut pour mode immersif
+    distance = 100000
+    carburant = 8000
+    vitesse = -1580
+
+atterissage_lunaire(distance, carburant, vitesse, mode_immersif)
