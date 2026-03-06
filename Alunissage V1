@@ -1,0 +1,66 @@
+
+import random
+import time
+
+#parametres
+vitesse =-1580  # en m/s
+distance=100000 #distance initiale en metre
+carburant=8000 #carburant en kg
+t=10 #temps entre commandes
+ts=0 #time slept
+
+def atterissage_lunaire (distance:int,carburant:int,t:int,vitesse:int):
+    #variables
+    g = 1.62  # gravité de la lune en N/kg qui équivaut à 1,62 m/s²
+    masse_module = 15000  # masse du module en kg
+    v=4500 #vitesse d'éjection des gaz en m/s
+    r = False
+    masse_module += carburant
+    while not r:
+#affichage de la hauteur/vitesse:
+        print("Hauteur actuelle: ",distance)
+        print("Vitesse actuelle: ", vitesse)
+        k=False
+        while not k:
+#quantité de fuel à utilisee:
+            quantite_fuel = float(input(f"Entrez la quantité de carburant à utiliser (0-{carburant:.0f}) : "))
+
+            if quantite_fuel < 0 or quantite_fuel > carburant:
+                print("Quantité de carburant  invalide, réessayez.")
+            else:
+                k=True
+#calcule de la vitesse du module:
+        vitesse+= -g*t + (quantite_fuel*v)/masse_module
+#calcule de la distance avec la lune:
+        distance+=vitesse
+#calcule de la masse du module
+        masse_module+= -quantite_fuel
+#calcule du carburant restant
+        carburant+= -quantite_fuel
+        if distance <=0 :
+            r=True
+            distance=0 #ajustement de la distance pour l'affichage final
+        time.sleep(ts) #permet de rajouter de l'immersion en simulant le fait que l'atterrissage se passent en temps réel
+    #résultat de la simulation:
+    print(f"\nVitesse au moment de l'impact: {vitesse:.2f}m/s")
+    print("Résultat de la mission:")
+    if vitesse==0 or vitesse>-10:
+        print("Attérrissage réussi")
+    else:
+        print("Atterrissage échoué")
+
+
+#appel de la fonction
+p=False
+while not p:
+    l=int(input("Mode immersif:1 et Mode rapide:2 :"))
+    if l==1 or l==2:
+        p=True
+if l==1:
+    ts=t
+    atterissage_lunaire(distance,carburant,t,vitesse)
+else :
+    distance = random.randint(5000, 100000)
+    carburant = random.randint(4000, 15000)
+    vitesse = random.uniform(-1580, 0)
+    atterissage_lunaire(distance, carburant, t,vitesse)
