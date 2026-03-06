@@ -1,0 +1,150 @@
+import tkinter as tk
+from tkinter import messagebox
+import random
+import time
+import threading
+
+# Paramètres initiaux
+GRAVITE_LUNE = 1.62  # Gravité lunaire en m/s²
+MASSE_MODULE_INITIALE = 15000  # Masse initiale du module sans carburant en kg
+VITESSE_EJECTION = 4500  # Vitesse d'éjection des gaz en m/s
+TEMPS_ETAPE = 10  # Temps entre chaque commande en secondes
+
+
+class AtterrissageLunaireGUI:
+    def __init__(self, master, distance_initiale, carburant_initial, vitesse_initiale, mode_immersif=False):
+        self.master = master
+        self.master.title("Simulation d'Atterrissage Lunaire")
+
+        self.hauteur = distance_initiale
+        self.vitesse = vitesse_initiale
+        self.carburant = carburant_initial
+        self.masse_module = MASSE_MODULE_INITIALE + self.carburant
+        self.mode_immersif = mode_immersif
+        self.temps_sleep = TEMPS_ETAPE if mode_immersif else 0
+        self.simulation_en_cours = True
+
+        # Interface éléments
+        self.label_hauteur = tk.Label(master, text=f"Hauteur: {self.hauteur:.2f} m")
+        self.label_hauteur.pack(pady=5)
+
+        self.label_vitesse = tk.Label(master, text=f"Vitesse: {self.vitesse:.2f} m/s")
+        self.label_vitesse.pack(pady=5)
+
+        self.label_carburant = tk.Label(master, text=f"Carburant: {self.carburant:.2f} kg")
+        self.label_carburant.pack(pady=5)
+
+        self.label_instruction = tk.Label(master, text="Entrez la quantité de carburant à utiliser:")
+        self.label_instruction.pack(pady=5)
+
+        self.entry_fuel = tk.Entry(master)
+        self.entry_fuel.pack(pady=5)
+
+        self.bouton_bruler = tk.Button(master, text="Brûler carburant", command=self.bruler_carburant)
+        self.bouton_bruler.pack(pady=10)
+
+        # Canvas pour représentation graphique simple
+        self.canvas = tk.Canvas(master, width=400, height=300, bg="black")
+        self.canvas.pack(pady=10)
+        self.dessiner_scene()
+
+    def dessiner_scene(self):
+        self.canvas.delete("all")
+        # Surface lunaire
+        self.canvas.create_line(0, 280, 400, 280, fill="white")
+        # Module (rectangle simple)
+        pos_y = 280 - (self.hauteur / 100000 * 260)  # Échelle approximative
+        self.canvas.create_rectangle(180, pos_y - 20, 220, pos_y, fill="blue")
+        # Étoiles de fond
+        for _ in range(50):
+            x = random.randint(0, 400)
+            y = random.randint(0, 280)
+            self.canvas.create_oval(x, y, x + 1, y + 1, fill="white")
+
+    def bruler_carburant(self):
+        if not self.simulation_en_cours:
+            return
+
+        try:
+            quantite_fuel = float(self.entry_fuel.get())
+            if quantite_fuel < 0 or quantite_fuel > self.carburant:
+                messagebox.showerror("Erreur", "Quantité de carburant invalide.")
+                return
+        except ValueError:
+            messagebox.showerror("Erreur", "Entrée invalide, veuillez entrer un nombre.")
+            return
+
+        self.entry_fuel.delete(0, tk.END)
+        self.bouton_bruler.config(state=tk.DISABLED)
+
+        # Simuler le délai en thread séparé pour ne pas bloquer l'UI
+        threading.Thread(target=self.mettre_a_jour_simulation, args=(quantite_fuel,)).start()
+
+    def mettre_a_jour_simulation(self, quantite_fuel):
+        time.sleep(self.temps_sleep)  # Délai pour immersion
+
+        # Calculs physiques
+        acceleration_poussee = (quantite_fuel * VITESSE_EJECTION) / (self.masse_module * TEMPS_ETAPE)
+        delta_v = (-GRAVITE_LUNE + acceleration_poussee) * TEMPS_ETAPE
+        vitesse_nouvelle = self.vitesse + delta_v
+        delta_hauteur = (self.vitesse + vitesse_nouvelle) / 2 * TEMPS_ETAPE
+        self.hauteur += delta_hauteur
+
+        if self.hauteur <= 0:
+            self.hauteur = 0
+            self.simulation_en_cours = False
+
+        self.vitesse = vitesse_nouvelle
+        self.masse_module -= quantite_fuel
+        self.carburant -= quantite_fuel
+
+        # Mise à jour UI (dans thread principal)
+        self.master.after(0, self.mettre_a_jour_ui)
+
+    def mettre_a_jour_ui(self):
+        self.label_hauteur.config(text=f"Hauteur: {self.hauteur:.2f} m")
+        self.label_vitesse.config(text=f"Vitesse: {self.vitesse:.2f} m/s")
+        self.label_carburant.config(text=f"Carburant: {self.carburant:.2f} kg")
+        self.dessiner_scene()
+
+        if not self.simulation_en_cours:
+            self.afficher_resultat()
+        else:
+            self.bouton_bruler.config(state=tk.NORMAL)
+
+    def afficher_resultat(self):
+        vitesse_impact = abs(self.vitesse)
+        if vitesse_impact <= 10:
+            messagebox.showinfo("Résultat", f"Vitesse à l'impact: {vitesse_impact:.2f} m/s\nAtterrissage réussi !")
+        else:
+            messagebox.showinfo("Résultat", f"Vitesse à l'impact: {vitesse_impact:.2f} m/s\nAtterrissage échoué...")
+        self.master.quit()
+
+
+def main():
+    root = tk.Tk()
+
+    # Menu pour choisir le mode
+    def lancer_simulation(choix):
+        mode_immersif = (choix == 1)
+        if choix == 2:
+            distance = random.uniform(5000, 100000)
+            carburant = random.uniform(4000, 15000)
+            vitesse = random.uniform(-1580, 0)
+        else:
+            distance = 100000
+            carburant = 8000
+            vitesse = -1580
+        app = AtterrissageLunaireGUI(root, distance, carburant, vitesse, mode_immersif)
+
+    menu = tk.Toplevel(root)
+    menu.title("Choix du Mode")
+    tk.Label(menu, text="Choisissez le mode :").pack(pady=10)
+    tk.Button(menu, text="1 - Immersif", command=lambda: [menu.destroy(), lancer_simulation(1)]).pack(pady=5)
+    tk.Button(menu, text="2 - Rapide", command=lambda: [menu.destroy(), lancer_simulation(2)]).pack(pady=5)
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
